@@ -42,4 +42,44 @@ stages:
             targetPath: '$(Build.ArtifactStagingDirectory)'
             artifact: 'XivApi.Discord.Bot'
             publishLocation: 'pipeline'
- 
+  - stage: Deploy_XivApi
+    jobs:
+      - deployment: Deploy_XivApi
+        workspace:
+          clean: all
+        environment: XivApi
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download Artifact'
+                inputs:
+                  buildType: 'current'
+                  artifactName: 'XivApi.Discord.Bot'
+                  targetPath: '$(Pipeline.Workspace)/Deploy'
+              - task: FileTransform@1
+                displayName: 'Tokenize Files'
+                inputs:
+                  folderPath: '$(Pipeline.Workspace)/Deploy/*.zip'
+                  fileType: 'json'
+                  targetFiles: '**/appsettings.json'
+              - task: CopyFilesOverSSH@0
+                displayName: 'Copy files to server'
+                inputs:
+                  sshEndpoint: 'Oracle Cloud'
+                  sourceFolder: '$(Pipeline.Workspace)/Deploy'
+                  contents: '**'
+                  targetFolder: '/home/deployuser/deployments/xivapi-test'
+                  cleanTargetFolder: true
+                  cleanHiddenFilesInTarget: true
+                  readyTimeout: '20000'
+              - task: SSH@0
+                displayName: 'Install XivApi'
+                inputs:
+                  sshEndpoint: 'Oracle Cloud'
+                  runOptions: 'commands'
+                  commands: |
+                    sudo rm -rf /var/bot/xivapi-test
+                    sudo unzip /home/deployuser/deployments/xivapi-test/*.zip -d /var/bot/xivapi-test
+                  readyTimeout: '20000'
