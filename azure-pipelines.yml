@@ -60,11 +60,17 @@ stages:
   - job: Deploy
     displayName: 'Deploy Artifacts'
     steps:
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(build.artifactStagingDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/artifacts.zip'  # Specify the path and filename for the zip archive
+
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'Oracle Cloud'
-        sourceFolder: '$(Agent.BuildDirectory)'
-        contents: '**'
+        sourceFolder: '$(Build.ArtifactStagingDirectory)'
+        contents: '**/artifacts.zip'  # Upload only the zip archive
         targetFolder: '/home/deployuser/deployments/xivapi'
         cleanTargetFolder: true
-        readyTimeout: '20000'
