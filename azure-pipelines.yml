@@ -23,16 +23,19 @@ stages:
             command: 'restore'
             projects: '**/*.sln'
             feedsToUse: 'select'
+            useGlobalJson: true
         - task: DotNetCoreCLI@2
           inputs:
             command: 'build'
             configuration: $(buildConfiguration)
             projects: '**/*.sln'
+            useGlobalJson: true
         - task: DotNetCoreCLI@2
           inputs:
             command: 'publish'
             publishWebProjects: false
             arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+            useGlobalJson: true
 
         - task: PublishPipelineArtifact@1
           inputs:
