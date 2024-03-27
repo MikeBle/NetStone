@@ -9,78 +9,35 @@ trigger:
 pool: Default
 
 variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
-stages:
-  - stage: Build
-    jobs:
-      - job: Build
-        steps:
-        - checkout: self
-          submodules: true
-        - task: DotNetCoreCLI@2
-          inputs:
-            command: 'restore'
-            projects: '**/*.sln'
-            feedsToUse: 'select'
-            useGlobalJson: true
-        - task: DotNetCoreCLI@2
-          inputs:
-            command: 'build'
-            configuration: $(buildConfiguration)
-            projects: '**/*.sln'
-            useGlobalJson: true
-        - task: DotNetCoreCLI@2
-          inputs:
-            command: 'publish'
-            publishWebProjects: false
-            arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-            useGlobalJson: true
+steps:
+- checkout: self
+  submodules: true
+- task: NuGetToolInstaller@1
 
-        - task: PublishPipelineArtifact@1
-          inputs:
-            targetPath: '$(Build.ArtifactStagingDirectory)'
-            artifact: 'XivApi.Discord.Bot'
-            publishLocation: 'pipeline'
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
 
-  - stage: Deploy_XivApi
-    jobs:
-      - deployment: Deploy_XivApi
-        workspace:
-          clean: all
-        environment: XivApi
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-              - task: DownloadPipelineArtifact@2
-                displayName: 'Download Artifact'
-                inputs:
-                  buildType: 'current'
-                  artifactName: 'XivApi.Discord.Bot'
-                  targetPath: '$(Pipeline.Workspace)/Deploy'
-              - task: FileTransform@1
-                displayName: 'Tokenize Files'
-                inputs:
-                  folderPath: '$(Pipeline.Workspace)/Deploy/*.zip'
-                  fileType: 'json'
-                  targetFiles: '**/appsettings.json'
-              - task: CopyFilesOverSSH@0
-                displayName: 'Copy files to server'
-                inputs:
-                  sshEndpoint: 'Oracle Cloud'
-                  sourceFolder: '$(Pipeline.Workspace)/Deploy'
-                  contents: '**'
-                  targetFolder: '/home/deployuser/deployments/xivapi-test'
-                  cleanTargetFolder: true
-                  cleanHiddenFilesInTarget: true
-                  readyTimeout: '20000'
-              - task: SSH@0
-                displayName: 'Install XivApi'
-                inputs:
-                  sshEndpoint: 'Oracle Cloud'
-                  runOptions: 'commands'
-                  commands: |
-                    sudo rm -rf /var/bot/xivapi-test
-                    sudo unzip /home/deployuser/deployments/xivapi-test/*.zip -d /var/bot/xivapi-test
-                  readyTimeout: '20000'
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: VSTest@2
+  inputs:
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: CopyFilesOverSSH@0
+  inputs:
+    sshEndpoint: 'Oracle Cloud'
+    sourceFolder: '$(build.artifactStagingDirectory)'  # Source folder containing build artifacts
+    contents: '**'  # Copy all files and directories recursively
+    targetFolder: '/home/deployuser/deployments/xivapi'  # Destination folder on the remote server
+    cleanTargetFolder: true  # Optionally clean the target folder before copying
