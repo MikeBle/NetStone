@@ -41,28 +41,21 @@ stages:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
-- stage: Test
-  dependsOn: Build
-  condition: succeeded()  # Only run if the Build stage succeeded
-  jobs:
-  - job: Test
-    displayName: 'Run Tests'
-    steps:
     - task: VSTest@2
       inputs:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
 - stage: Deploy
-  dependsOn: Test
-  condition: succeeded()  # Only run if the Test stage succeeded
+  dependsOn: Build
+  condition: succeeded()  # Only run if the Build stage succeeded
   jobs:
   - job: Deploy
     displayName: 'Deploy Artifacts'
     steps:
     - task: ArchiveFiles@2
       inputs:
-        rootFolderOrFile: '$(build.artifactStagingDirectory)'
+        rootFolderOrFile: '$(Agent.BuildDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/artifacts.zip'  # Specify the path and filename for the zip archive
