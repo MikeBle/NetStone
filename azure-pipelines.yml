@@ -63,7 +63,8 @@ stages:
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'Oracle Cloud'
-        sourceFolder: '$(build.artifactStagingDirectory)'
+        sourceFolder: '$(Agent.BuildDirectory)'
         contents: '**'
         targetFolder: '/home/deployuser/deployments/xivapi'
         cleanTargetFolder: true
+        readyTimeout: '20000'
