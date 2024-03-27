@@ -19,33 +19,51 @@ variables:
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
-steps:
-- checkout: self
-  submodules: true
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    displayName: 'Build Solution'
+    steps:
+    - checkout: self
+      submodules: true
 
-- task: NuGetToolInstaller@1
+    - task: NuGetToolInstaller@1
 
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+    - task: NuGetCommand@2
+      inputs:
+        restoreSolution: '$(solution)'
 
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    - task: VSBuild@1
+      inputs:
+        solution: '$(solution)'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)" /p:ArtifactStagingDirectory="$(build.artifactStagingDirectory)"'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
 
-- task: VSTest@2
-  condition: and(succeeded(), eq(variables['RunVSTests'], true))
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+- stage: Test
+  dependsOn: Build
+  condition: succeeded()  # Only run if the Build stage succeeded
+  jobs:
+  - job: Test
+    displayName: 'Run Tests'
+    steps:
+    - task: VSTest@2
+      inputs:
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
 
-- task: CopyFilesOverSSH@0
-  inputs:
-    sshEndpoint: 'Oracle Cloud'
-    sourceFolder: '$(build.artifactStagingDirectory)'
-    contents: '**'
-    targetFolder: '/home/deployuser/deployments/xivapi'
-    cleanTargetFolder: true
+- stage: Deploy
+  dependsOn: Test
+  condition: succeeded()  # Only run if the Test stage succeeded
+  jobs:
+  - job: Deploy
+    displayName: 'Deploy Artifacts'
+    steps:
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'Oracle Cloud'
+        sourceFolder: '$(build.artifactStagingDirectory)'
+        contents: '**'
+        targetFolder: '/home/deployuser/deployments/xivapi'
+        cleanTargetFolder: true
