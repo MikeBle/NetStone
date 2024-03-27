@@ -17,13 +17,13 @@ stages:
     jobs:
       - job: Build
         steps:
+        - checkout: self
+          submodules: true
         - task: DotNetCoreCLI@2
           inputs:
             command: 'restore'
             projects: '**/*.csproj'
             feedsToUse: 'select'
-            vstsFeed: 'dcab459b-dc1f-4fc8-b085-a31d573e0a34/60250785-7581-4e99-8033-d1f17ed03d05'
-
         - task: DotNetCoreCLI@2
           inputs:
             command: 'build'
