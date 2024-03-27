@@ -27,19 +27,15 @@ stages:
 
         - task: VSBuild@1
           inputs:
+            command: 'publish'
             solution: '$(solution)'
-            msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-            platform: '$(buildPlatform)'
-            configuration: '$(buildConfiguration)'
-
-        - task: VSTest@2
-          inputs:
+            msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.artifactStagingDirectory)"'
             platform: '$(buildPlatform)'
             configuration: '$(buildConfiguration)'
             
         - task: PublishPipelineArtifact@1
           inputs:
-            targetPath: '$(build.ArtifactStagingDirectory)'
+            targetPath: '$(Build.ArtifactStagingDirectory)'
             artifact: 'XivApi.Discord.Bot'
             publishLocation: 'pipeline'
   - stage: Deploy_XivApi
