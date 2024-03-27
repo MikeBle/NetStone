@@ -17,22 +17,25 @@ stages:
     jobs:
       - job: Build
         steps:
-        - checkout: self
-          submodules: true
-        - task: NuGetToolInstaller@1
-
-        - task: NuGetCommand@2
+        - task: DotNetCoreCLI@2
           inputs:
-            restoreSolution: '$(solution)'
+            command: 'restore'
+            projects: '**/*.csproj'
+            feedsToUse: 'select'
+            vstsFeed: 'dcab459b-dc1f-4fc8-b085-a31d573e0a34/60250785-7581-4e99-8033-d1f17ed03d05'
 
-        - task: VSBuild@1
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'build'
+            configuration: $(buildConfiguration)
+            projects: '**/*.csproj'
+
+        - task: DotNetCoreCLI@2
           inputs:
             command: 'publish'
-            solution: '$(solution)'
-            msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.artifactStagingDirectory)"'
-            platform: '$(buildPlatform)'
-            configuration: '$(buildConfiguration)'
-            
+            publishWebProjects: false
+            arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+
         - task: PublishPipelineArtifact@1
           inputs:
             targetPath: '$(Build.ArtifactStagingDirectory)'
