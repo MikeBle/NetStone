@@ -3,12 +3,6 @@
 # Add steps that publish symbols, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
 
-parameters:
-- name: RunVSTests
-  displayName: 'Run VSTest?'
-  type: boolean
-  default: false
-
 trigger:
 - master
 
@@ -67,3 +61,4 @@ stages:
         contents: '**/artifacts.zip'  # Upload only the zip archive
         targetFolder: '/home/deployuser/deployments/xivapi'
         cleanTargetFolder: true
+        
