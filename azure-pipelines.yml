@@ -1,7 +1,7 @@
-# ASP.NET
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
 trigger:
 - master
@@ -9,56 +9,61 @@ trigger:
 pool: Default
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
-
 stages:
-- stage: Build
-  jobs:
-  - job: Build
-    displayName: 'Build Solution'
-    steps:
-    - checkout: self
-      submodules: true
+  - stage: Build
+    jobs:
+      - job: Build
+        steps:
+        - checkout: self
+          submodules: true
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'build'
+            configuration: $(buildConfiguration)
+            projects: '**/*.csproj'
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'publish'
+            publishWebProjects: false
+            arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
 
-    - task: NuGetToolInstaller@1
-
-    - task: NuGetCommand@2
-      inputs:
-        restoreSolution: '$(solution)'
-
-    - task: VSBuild@1
-      inputs:
-        solution: '$(solution)'
-        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)" /p:ArtifactStagingDirectory="$(build.artifactStagingDirectory)"'
-        platform: '$(buildPlatform)'
-        configuration: '$(buildConfiguration)'
-
-    - task: VSTest@2
-      inputs:
-        platform: '$(buildPlatform)'
-        configuration: '$(buildConfiguration)'
-
-- stage: Deploy
-  dependsOn: Build
-  condition: succeeded()  # Only run if the Build stage succeeded
-  jobs:
-  - job: Deploy
-    displayName: 'Deploy Artifacts'
-    steps:
-    - task: ArchiveFiles@2
-      inputs:
-        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
-        includeRootFolder: false
-        archiveType: 'zip'
-        archiveFile: '$(Build.ArtifactStagingDirectory)/artifacts.zip'  # Specify the path and filename for the zip archive
-
-    - task: CopyFilesOverSSH@0
-      inputs:
-        sshEndpoint: 'Oracle Cloud'
-        sourceFolder: '$(Build.ArtifactStagingDirectory)'
-        contents: '**/artifacts.zip'  # Upload only the zip archive
-        targetFolder: '/home/deployuser/deployments/xivapi'
-        cleanTargetFolder: true
-        
+        - task: PublishPipelineArtifact@1
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)'
+            artifact: 'Xivapi.Discord.Bot'
+            publishLocation: 'pipeline'
+  
+  - stage: Deploy
+    jobs:
+      - deployment: Deploy
+        workspace:
+          clean: all
+        environment: Live
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download Artifact'
+                inputs:
+                  buildType: 'current'
+                  artifactName: 'Xivapi.Discord.Bot'
+                  targetPath: '$(Pipeline.Workspace)/Deploy'
+              - task: FileTransform@1
+                displayName: 'Tokenize Files'
+                inputs:
+                  folderPath: '$(Pipeline.Workspace)/Deploy/*.zip'
+                  fileType: 'json'
+                  targetFiles: '**/appsettings.json'
+              - task: CopyFilesOverSSH@0
+                displayName: 'Copy files to server'
+                inputs:
+                  sshEndpoint: 'Oracle Cloud'
+                  sourceFolder: '$(Pipeline.Workspace)/Deploy'
+                  contents: '**'
+                  targetFolder: '/home/deployuser/deployments/xivapi'
+                  cleanTargetFolder: true
+                  cleanHiddenFilesInTarget: true
+                  readyTimeout: '20000'
+                    
